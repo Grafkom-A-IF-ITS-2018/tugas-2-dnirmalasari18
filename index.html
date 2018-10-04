@@ -1,0 +1,285 @@
+<html>
+  <head>
+    <title>Tugas 2</title>
+    <meta http-equiv="content-type" content="text/html" charset="ISO-8859-1">
+
+    <script type="text/javascript" src="gl-matrix-min.js"></script>
+
+    <script id="shader-fs" type="x-shader/x-fragment">
+      precision mediump float;
+      varying vec4 vColor;
+      void main(void) {
+        gl_FragColor = vColor;
+      }
+    </script>
+    
+    <script id="shader-vs" type="x-shader/x-vertex">
+      attribute vec3 aVertexPosition;
+      attribute vec4 aVertexColor;
+      uniform mat4 uMVMatrix;
+      uniform mat4 uPMatrix;
+      varying vec4 vColor;
+      void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vColor = aVertexColor;
+      }
+    </script>
+    <script type="text/javascript">
+      /** @type {WebGLRenderingContext} */
+      var gl
+      function initGL(canvas) {
+        try {
+          gl = canvas.getContext('webgl')
+          gl.viewportWidth = canvas.width
+          gl.viewportHeight = canvas.height
+        } catch (e) {}
+        if (!gl) {
+          alert('Tidak bisa menginisialisasi WebGL')
+        }
+      }
+      function getShader(gl, id) {
+        var shaderScript = document.getElementById(id)
+        if (!shaderScript) {
+          return null
+        }
+        var str = ''
+        var k = shaderScript.firstChild
+        while (k) {
+          if (k.nodeType == 3) {
+            str += k.textContent
+          }
+          k = k.nextSibling
+        }
+        var shader
+        if (shaderScript.type == 'x-shader/x-fragment') {
+          shader = gl.createShader(gl.FRAGMENT_SHADER)
+        } else if (shaderScript.type = 'x-shader/x-vertex') {
+          shader = gl.createShader(gl.VERTEX_SHADER)
+        } else {
+          return null
+        }
+        gl.shaderSource(shader, str)
+        gl.compileShader(shader)
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          alert(gl.getShaderInfoLog(shader))
+          return null
+        }
+        return shader
+      }
+      var shaderProgram
+      function initShaders() {
+        var fragmentShader = getShader(gl, 'shader-fs')
+        var vertexShader = getShader(gl, 'shader-vs')
+        shaderProgram = gl.createProgram()
+        gl.attachShader(shaderProgram, fragmentShader)
+        gl.attachShader(shaderProgram, vertexShader)
+        gl.linkProgram(shaderProgram)
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+          alert('Tidak bisa menginisialisasi shaders')
+        }
+        gl.useProgram(shaderProgram)
+        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, 'aVertexPosition')
+        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute)
+        shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, 'aVertexColor')
+        gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute)
+        shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, 'uPMatrix')
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, 'uMVMatrix')
+      }
+      var mvMatrix = mat4.create()
+      var mvMatrixStack = []
+      var pMatrix = mat4.create()
+      function mvPushMatrix() {
+        var copy = mat4.create()
+        mat4.copy(copy, mvMatrix)
+        mvMatrixStack.push(copy)
+      }
+      function mvPopMatrix() {
+        if (mvMatrixStack.length == 0) {
+          throw "Tumpukan matriks kosong"
+        }
+        mvMatrix = mvMatrixStack.pop()
+      }
+      function setMatrixUniforms() {
+        gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix)
+        gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix)
+      }
+      
+      var hurufAVertexPositionBuffer
+      var hurufAVertexColorBuffer
+      verticesA =[]
+      verticesCube=[]
+      
+      function hurufABuffers() {
+        hurufAVertexPositionBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER,hurufAVertexPositionBuffer)
+        verticesA = [
+          -0.8, -1.0, 0.0,//
+          -0.7,-1.0,0.0,
+          -0.3,1.0,0.0,//
+          -0.1,1.0,0.0,//
+          -0.2,0.8,0.0,
+          0.6,-1.0,0.0,//
+          0.5,-1.0,0.0,
+          0.3,-0.3,0.0,
+          0.3,-0.4,0.0,
+          -0.6,-0.3,0.0,
+          -0.6,-0.4,0.0,
+        ]
+        for(var i=0;i<verticesA.length;i++){
+          verticesA[i]*=3/5;
+        }
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesA), gl.STATIC_DRAW)
+        hurufAVertexPositionBuffer.itemSize = 3
+        hurufAVertexPositionBuffer.numItems = verticesA.length/hurufAVertexPositionBuffer.itemSize
+        
+        // Color
+        hurufAVertexColorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, hurufAVertexColorBuffer);
+        colorz = [];
+        for (var i=0; i < hurufAVertexPositionBuffer.numItems; i++) {
+            colorz = colorz.concat([0.98, 0.62, 0.75, 1.0]);
+        }
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colorz), gl.STATIC_DRAW);
+        hurufAVertexColorBuffer.itemSize = 4;
+        hurufAVertexColorBuffer.numItems = hurufAVertexPositionBuffer.numItems
+      }
+
+      var cubeVertexPositionBuffer;
+      var cubeVertexColorBuffer;
+      function cubeBuffers() {
+        cubeVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexPositionBuffer);
+        verticesCube = [
+          // Front face
+          -2.0, -2.0,  2.0,
+          2.0, -2.0,  2.0,
+          2.0,  2.0,  2.0,
+          -2.0,  2.0,  2.0,
+          -2.0, -2.0, 2.0,
+             
+          // Back face
+          -2.0, -2.0, -2.0,
+          -2.0,  2.0, -2.0,
+          2.0,  2.0, -2.0,
+          2.0, -2.0, -2.0,
+          -2.0,-2.0,-2.0,
+  
+          -2.0,2.0,-2.0,
+          -2.0,2.0,2.0,
+          2.0, 2.0, 2.0,
+          2.0, 2.0, -2.0,
+          2.0,-2.0,-2.0,
+          2.0,-2.0,2.0,             
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesCube), gl.STATIC_DRAW);
+        cubeVertexPositionBuffer.itemSize = 3;
+        cubeVertexPositionBuffer.numItems = verticesCube.length/3;
+        
+        cubeVertexColorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexColorBuffer);
+        var colors = [];
+        for (var i=0; i < cubeVertexPositionBuffer.numItems; i++) {
+          colors = colors.concat([Math.random(),Math.random(),Math.random(), 1.0]);
+        }
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+        cubeVertexColorBuffer.itemSize = 4;
+        cubeVertexColorBuffer.numItems = cubeVertexPositionBuffer.numItems;
+      }
+
+      var cenX=0.0
+      var cenY=0.0
+      var cenZ=0.0
+      var moves=[1.0,1.0, 1.0]
+      var speed= 0.009
+      
+      function move(){
+        gl.bindBuffer(gl.ARRAY_BUFFER, hurufAVertexPositionBuffer)
+        for(var i=0;i<hurufAVertexPositionBuffer.numItems;i++){
+          verticesA[i*3]+=(moves[0]*speed)
+          verticesA[i*3+1]+=(moves[1]*speed)
+          verticesA[i*3+2]+=(moves[2]*speed)
+        }
+        cenX+=(moves[0]*speed)
+        cenY+=(moves[1]*speed)
+        cenZ+=(moves[2]*speed)
+        vertices1 = rotate(verticesA,glMatrix.toRadian(moves[0]*1.5),cenX,cenZ)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesA), gl.STATIC_DRAW)
+      }
+      
+      function rotate(matrix, degree,x,y){
+        for(var i=0;i<matrix.length/3;i++){
+          var xnew = matrix[i*3]-x
+          var ynew = matrix[i*3+2]-y
+          matrix[i*3]=Math.cos(degree)*(xnew)-Math.sin(degree)*(ynew) +x
+          matrix[i*3+2]=Math.sin(degree)*(xnew)+Math.cos(degree)*(ynew) +y
+          }
+        return matrix
+      }
+      var ujungA=[0,1,2,15,7]
+
+      function collision(){
+        if(verticesA[1]<=-2.0|| verticesA[7]>=2.0) {
+          moves[1]*=-1
+        }
+        if(verticesA[0]<=-2.0 || verticesA[0]>=2.0) {
+          moves[0]*=-1
+        }
+        if(verticesA[15]<=-2.0 || verticesA[15]>=2.0) {
+          moves[0]*=-1
+        }
+        for(var i=0;i<verticesA.length;i++){
+          if(verticesA[i+2]>=2.0 || verticesA[i+2]<=-2.0){
+            moves[2]*=-1;
+            break;
+          }
+        }
+      }
+      
+      var rhurufA=0;
+      function drawScene() {
+        collision()
+        move()
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        mat4.perspective(pMatrix, glMatrix.toRadian(45), gl.viewportWidth / gl.viewportHeight, 0.1, 100.0) 
+        mat4.identity(mvMatrix);
+
+        mat4.translate(mvMatrix, mvMatrix, [0.0, 0.0, -8.0])
+        gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, cubeVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexColorBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, cubeVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        setMatrixUniforms();
+        gl.drawArrays(gl.LINE_STRIP, 0, cubeVertexPositionBuffer.numItems)
+
+        
+        mat4.translate(mvMatrix, mvMatrix, [0.0, 0.0, 0.0])
+        gl.bindBuffer(gl.ARRAY_BUFFER, hurufAVertexPositionBuffer)
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, hurufAVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0)
+        gl.bindBuffer(gl.ARRAY_BUFFER,hurufAVertexColorBuffer)
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, hurufAVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0)
+        setMatrixUniforms()
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, hurufAVertexPositionBuffer.numItems)
+        
+      }
+
+      function tick() {
+        requestAnimationFrame(tick)
+        drawScene()
+      }
+      function webGLStart() {
+        var canvas = document.getElementById('mycanvas')
+        initGL(canvas)
+        initShaders()
+        cubeBuffers()
+        hurufABuffers()
+        gl.clearColor(0.0, 0.0, 0.0, 1.0)
+        gl.enable(gl.DEPTH_TEST)
+        tick()
+      }
+    </script>
+  </head>
+  <body onload="webGLStart();">
+    <canvas id="mycanvas" style="border: none; display: block; margin: auto" width="625" height="625"></canvas>
+  </body>
+</html>
